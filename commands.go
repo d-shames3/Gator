@@ -1,12 +1,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/d-shames3/gatorcli/internal/config"
+	"github.com/d-shames3/gatorcli/internal/database"
+	"github.com/google/uuid"
 )
 
 type state struct {
+	db     *database.Queries
 	config *config.Config
 }
 
@@ -39,14 +45,54 @@ func (c *commands) register(name string, f func(*state, command) error) error {
 
 func handlerLogin(s *state, cmd command) error {
 	if len(cmd.args) == 0 {
-		return fmt.Errorf("no username arg provided")
+		return fmt.Errorf("no username arg provided for login")
 	}
 
-	err := s.config.SetUser(cmd.args[0])
+	_, err := s.db.GetUser(context.Background(), cmd.args[0])
+	if err != nil {
+		return fmt.Errorf("cannot login as an unregistered user - please register first")
+		os.Exit(1)
+	}
+
+	err = s.config.SetUser(cmd.args[0])
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("User is logged in!")
+	fmt.Printf("Successfully logged in as user %s!\n", cmd.args[0])
+	return nil
+}
+
+func handlerRegister(s *state, cmd command) error {
+	if len(cmd.args) == 0 {
+		return fmt.Errorf("no username provided for registration")
+	}
+
+	registerUserParams := database.CreateUserParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      cmd.args[0],
+	}
+
+	_, err := s.db.GetUser(context.Background(), registerUserParams.Name)
+	if err == nil {
+		fmt.Println("User already registered")
+		os.Exit(1)
+		return nil
+	}
+
+	user, err := s.db.CreateUser(context.Background(), registerUserParams)
+	if err != nil {
+		return fmt.Errorf("error registering user: %v", err)
+	}
+
+	err = s.config.SetUser(user.Name)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("User %s was created!\n", user.Name)
+	fmt.Printf("%s user data: %v\n", user.Name, user)
 	return nil
 }

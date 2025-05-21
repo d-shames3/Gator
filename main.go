@@ -1,11 +1,14 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
 
 	"github.com/d-shames3/gatorcli/internal/config"
+	"github.com/d-shames3/gatorcli/internal/database"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -15,10 +18,21 @@ func main() {
 	}
 	fmt.Printf("Start config: %v\n", cfg)
 
-	st := state{&cfg}
+	db, err := sql.Open("postgres", cfg.DbURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dbQueries := database.New(db)
+	st := state{dbQueries, &cfg}
 	cmds := commands{make(map[string]func(*state, command) error)}
 
 	err = cmds.register("login", handlerLogin)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = cmds.register("register", handlerRegister)
 	if err != nil {
 		log.Fatal(err)
 	}
