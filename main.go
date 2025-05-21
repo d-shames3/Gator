@@ -42,6 +42,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	err = cmds.register("users", handlerUsers)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	argsRaw := os.Args
 	if len(argsRaw) < 2 {
 		log.Fatalln("no command line args provided")

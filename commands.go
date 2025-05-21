@@ -109,3 +109,25 @@ func handlerReset(s *state, cmd command) error {
 	fmt.Println("Successfully reset all users!")
 	return nil
 }
+
+func handlerUsers(s *state, cmd command) error {
+	currentUser := s.config.CurrentUserName
+
+	users, err := s.db.GetUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("error fetching users: %v", err)
+	}
+
+	if len(users) == 0 {
+		return fmt.Errorf("no users to list")
+	}
+
+	for _, user := range users {
+		if user == currentUser {
+			user += " (current)"
+		}
+		fmt.Printf("* %s\n", user)
+	}
+
+	return nil
+}
