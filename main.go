@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/d-shames3/gatorcli/internal/config"
 )
@@ -14,15 +15,35 @@ func main() {
 	}
 	fmt.Printf("Start config: %v\n", cfg)
 
-	err = cfg.SetUser("david")
+	st := state{&cfg}
+	cmds := commands{make(map[string]func(*state, command) error)}
+
+	err = cmds.register("login", handlerLogin)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	newConfig, err := config.Read()
+	argsRaw := os.Args
+	if len(argsRaw) < 2 {
+		log.Fatalln("no command line args provided")
+	}
+
+	args := make([]string, 0)
+	cmdName := argsRaw[1]
+	if len(argsRaw) > 2 {
+		args = append(args, argsRaw[2:]...)
+	}
+
+	command := command{cmdName, args}
+	err = cmds.run(&st, command)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Current config: %v\n", newConfig)
+
+	cfgNew, err := config.Read()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("End config: %v\n", cfgNew)
 
 }
