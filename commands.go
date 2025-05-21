@@ -50,8 +50,9 @@ func handlerLogin(s *state, cmd command) error {
 
 	_, err := s.db.GetUser(context.Background(), cmd.args[0])
 	if err != nil {
-		return fmt.Errorf("cannot login as an unregistered user - please register first")
+		fmt.Println("cannot login as an unregistered user - please register first")
 		os.Exit(1)
+		return nil
 	}
 
 	err = s.config.SetUser(cmd.args[0])
@@ -94,5 +95,17 @@ func handlerRegister(s *state, cmd command) error {
 
 	fmt.Printf("User %s was created!\n", user.Name)
 	fmt.Printf("%s user data: %v\n", user.Name, user)
+	return nil
+}
+
+func handlerReset(s *state, cmd command) error {
+	err := s.db.DeleteUsers(context.Background())
+	if err != nil {
+		fmt.Printf("error resetting users: %v", err)
+		os.Exit(1)
+		return nil
+	}
+
+	fmt.Println("Successfully reset all users!")
 	return nil
 }

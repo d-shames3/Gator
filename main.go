@@ -37,6 +37,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	err = cmds.register("reset", handlerReset)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	argsRaw := os.Args
 	if len(argsRaw) < 2 {
 		log.Fatalln("no command line args provided")
@@ -59,5 +64,4 @@ func main() {
 		log.Fatal(err)
 	}
 	fmt.Printf("End config: %v\n", cfgNew)
-
 }
