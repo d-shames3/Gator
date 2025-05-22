@@ -43,6 +43,18 @@ func (c *commands) register(name string, f func(*state, command) error) error {
 	return nil
 }
 
+func handlerAgg(s *state, cmd command) error {
+	const url string = "https://www.wagslane.dev/index.xml"
+
+	rss, err := fetchFeed(context.Background(), url)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("rss struct: %v", rss)
+	return nil
+}
+
 func handlerLogin(s *state, cmd command) error {
 	if len(cmd.args) == 0 {
 		return fmt.Errorf("no username arg provided for login")

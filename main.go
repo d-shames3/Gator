@@ -27,6 +27,11 @@ func main() {
 	st := state{dbQueries, &cfg}
 	cmds := commands{make(map[string]func(*state, command) error)}
 
+	err = cmds.register("agg", handlerAgg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	err = cmds.register("login", handlerLogin)
 	if err != nil {
 		log.Fatal(err)
