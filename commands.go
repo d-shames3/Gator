@@ -43,6 +43,35 @@ func (c *commands) register(name string, f func(*state, command) error) error {
 	return nil
 }
 
+func handlerAddFeed(s *state, cmd command) error {
+	if len(cmd.args) < 2 {
+		return fmt.Errorf("missing either name or url")
+	}
+
+	user, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
+	if err != nil {
+		return err
+	}
+
+	feedParams := database.CreateFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      cmd.args[0],
+		Url:       cmd.args[1],
+		UserID:    user.ID,
+	}
+
+	feed, err := s.db.CreateFeed(context.Background(), feedParams)
+	if err != nil {
+		return fmt.Errorf("error add feed to database: %v", err)
+	}
+
+	fmt.Printf("%s feed successfully added to database for user %s\n", feed.Name, s.config.CurrentUserName)
+	fmt.Printf("Full feed data: %v\n", feed)
+	return nil
+}
+
 func handlerAgg(s *state, cmd command) error {
 	const url string = "https://www.wagslane.dev/index.xml"
 
