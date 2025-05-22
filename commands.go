@@ -84,6 +84,19 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
+func handlerFeeds(s *state, cmd command) error {
+	feeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		return fmt.Errorf("error fetching feeds from database: %v", err)
+	}
+
+	for _, feed := range feeds {
+		fmt.Printf("* feed: %s, url: %s, user: %s\n", feed.Feed, feed.Url, feed.User.String)
+	}
+
+	return nil
+}
+
 func handlerLogin(s *state, cmd command) error {
 	if len(cmd.args) == 0 {
 		return fmt.Errorf("no username arg provided for login")
