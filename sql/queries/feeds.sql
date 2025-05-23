@@ -16,6 +16,10 @@ SELECT
     feeds.name as feed,
     feeds.url
 FROM feeds
-LEFT JOIN users
+INNER JOIN users
     ON feeds.user_id = users.id
 ;
+
+-- name: GetFeed :one
+SELECT id, name FROM feeds
+WHERE url = $1 LIMIT 1;  

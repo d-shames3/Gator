@@ -7,7 +7,6 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -56,18 +55,35 @@ func (q *Queries) CreateFeed(ctx context.Context, arg CreateFeedParams) (Feed, e
 	return i, err
 }
 
+const getFeed = `-- name: GetFeed :one
+SELECT id, name FROM feeds
+WHERE url = $1 LIMIT 1
+`
+
+type GetFeedRow struct {
+	ID   uuid.UUID
+	Name string
+}
+
+func (q *Queries) GetFeed(ctx context.Context, url string) (GetFeedRow, error) {
+	row := q.db.QueryRowContext(ctx, getFeed, url)
+	var i GetFeedRow
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
 const getFeeds = `-- name: GetFeeds :many
 SELECT
     users.name as user,
     feeds.name as feed,
     feeds.url
 FROM feeds
-LEFT JOIN users
+INNER JOIN users
     ON feeds.user_id = users.id
 `
 
 type GetFeedsRow struct {
-	User sql.NullString
+	User string
 	Feed string
 	Url  string
 }
