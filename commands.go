@@ -26,10 +26,15 @@ type commands struct {
 }
 
 func (c *commands) run(s *state, cmd command) error {
+	_, exists := c.commands[cmd.name]
+	if !exists {
+		return fmt.Errorf("invalid command, try again")
+	}
 	err := c.commands[cmd.name](s, cmd)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -43,14 +48,9 @@ func (c *commands) register(name string, f func(*state, command) error) error {
 	return nil
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, user database.User) error {
 	if len(cmd.args) < 2 {
 		return fmt.Errorf("missing either name or url")
-	}
-
-	user, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
-	if err != nil {
-		return err
 	}
 
 	feedParams := database.CreateFeedParams{
@@ -113,7 +113,7 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollow(s *state, cmd command) error {
+func handlerFollow(s *state, cmd command, user database.User) error {
 	if len(cmd.args) == 0 {
 		return fmt.Errorf("must provide feed url")
 	}
@@ -123,11 +123,6 @@ func handlerFollow(s *state, cmd command) error {
 		return fmt.Errorf("feed not found, must add feed before following")
 	}
 
-	user, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
-	if err != nil {
-		return err
-	}
-
 	feeds, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
 	if err != nil {
 		fmt.Println("user is not yet following any feeds")
@@ -135,7 +130,7 @@ func handlerFollow(s *state, cmd command) error {
 
 	for _, userFeed := range feeds {
 		if feed.ID == userFeed.ID {
-			return fmt.Errorf("user is already following %s feed", feed.Name)
+			return fmt.Errorf("user is already following %s feed\n", feed.Name)
 		}
 	}
 
@@ -152,19 +147,19 @@ func handlerFollow(s *state, cmd command) error {
 		return fmt.Errorf("error following feed: %v", err)
 	}
 
-	fmt.Printf("User %s successfully followed feed %s!", feedFollow.User, feedFollow.Feed)
+	fmt.Printf("User %s successfully followed feed %s!\n", feedFollow.User, feedFollow.Feed)
 	return nil
 }
 
-func handlerFollowing(s *state, cmd command) error {
-	user, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
+func handlerFollowing(s *state, cmd command, user database.User) error {
+	feedsFollowing, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
 	if err != nil {
 		return err
 	}
 
-	feedsFollowing, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
-	if err != nil {
-		return fmt.Errorf("user is not following any feeds")
+	if len(feedsFollowing) == 0 {
+		fmt.Printf("User %s is not following any feeds\n", s.config.CurrentUserName)
+		return nil
 	}
 
 	fmt.Printf("User %s is following these feeds:\n", s.config.CurrentUserName)
@@ -239,6 +234,26 @@ func handlerReset(s *state, cmd command) error {
 	}
 
 	fmt.Println("Successfully reset all users!")
+	return nil
+}
+
+func handlerUnfollow(s *state, cmd command, user database.User) error {
+	feed, err := s.db.GetFeed(context.Background(), cmd.args[0])
+	if err != nil {
+		return fmt.Errorf("error fetching feed: %v", err)
+	}
+
+	unfollowParams := database.DeleteFeedFollowForUserParams{
+		UserID: user.ID,
+		FeedID: feed.ID,
+	}
+
+	err = s.db.DeleteFeedFollowForUser(context.Background(), unfollowParams)
+	if err != nil {
+		return fmt.Errorf("error deleting feed %s for user %s", feed.Name, user.Name)
+	}
+
+	fmt.Printf("User %s is no longer following feed %s\n", user.Name, feed.Name)
 	return nil
 }
 
