@@ -40,6 +40,16 @@ func main() {
 		log.Fatal(err)
 	}
 
+	err = cmds.register("follow", handlerFollow)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = cmds.register("following", handlerFollowing)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	err = cmds.register("login", handlerLogin)
 	if err != nil {
 		log.Fatal(err)

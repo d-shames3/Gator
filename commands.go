@@ -69,6 +69,22 @@ func handlerAddFeed(s *state, cmd command) error {
 
 	fmt.Printf("%s feed successfully added to database for user %s\n", feed.Name, s.config.CurrentUserName)
 	fmt.Printf("Full feed data: %v\n", feed)
+
+	followFeedParams := database.CreateFeedFollowsParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    user.ID,
+		FeedID:    feed.ID,
+	}
+
+	_, err = s.db.CreateFeedFollows(context.Background(), followFeedParams)
+	if err != nil {
+		return fmt.Errorf("error creating feed follow entry for user")
+	}
+
+	fmt.Printf("%s is now following %s feed", s.config.CurrentUserName, feed.Name)
+
 	return nil
 }
 
@@ -91,7 +107,69 @@ func handlerFeeds(s *state, cmd command) error {
 	}
 
 	for _, feed := range feeds {
-		fmt.Printf("* feed: %s, url: %s, user: %s\n", feed.Feed, feed.Url, feed.User.String)
+		fmt.Printf("* feed: %s, url: %s, user: %s\n", feed.Feed, feed.Url, feed.User)
+	}
+
+	return nil
+}
+
+func handlerFollow(s *state, cmd command) error {
+	if len(cmd.args) == 0 {
+		return fmt.Errorf("must provide feed url")
+	}
+
+	feed, err := s.db.GetFeed(context.Background(), cmd.args[0])
+	if err != nil {
+		return fmt.Errorf("feed not found, must add feed before following")
+	}
+
+	user, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
+	if err != nil {
+		return err
+	}
+
+	feeds, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
+	if err != nil {
+		fmt.Println("user is not yet following any feeds")
+	}
+
+	for _, userFeed := range feeds {
+		if feed.ID == userFeed.ID {
+			return fmt.Errorf("user is already following %s feed", feed.Name)
+		}
+	}
+
+	followFeedParams := database.CreateFeedFollowsParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    user.ID,
+		FeedID:    feed.ID,
+	}
+
+	feedFollow, err := s.db.CreateFeedFollows(context.Background(), followFeedParams)
+	if err != nil {
+		return fmt.Errorf("error following feed: %v", err)
+	}
+
+	fmt.Printf("User %s successfully followed feed %s!", feedFollow.User, feedFollow.Feed)
+	return nil
+}
+
+func handlerFollowing(s *state, cmd command) error {
+	user, err := s.db.GetUser(context.Background(), s.config.CurrentUserName)
+	if err != nil {
+		return err
+	}
+
+	feedsFollowing, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
+	if err != nil {
+		return fmt.Errorf("user is not following any feeds")
+	}
+
+	fmt.Printf("User %s is following these feeds:\n", s.config.CurrentUserName)
+	for _, feed := range feedsFollowing {
+		fmt.Printf("* %s\n", feed.Feed)
 	}
 
 	return nil
