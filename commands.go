@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/d-shames3/gatorcli/internal/config"
@@ -89,14 +90,51 @@ func handlerAddFeed(s *state, cmd command, user database.User) error {
 }
 
 func handlerAgg(s *state, cmd command) error {
-	const url string = "https://www.wagslane.dev/index.xml"
-
-	rss, err := fetchFeed(context.Background(), url)
-	if err != nil {
-		return err
+	if len(cmd.args) == 0 {
+		return fmt.Errorf("must provide a time between requests duration, formatted like 1s, 1m, 1h")
 	}
 
-	fmt.Printf("rss struct: %v", rss)
+	timeBetweenReqs, err := time.ParseDuration(cmd.args[0])
+	if err != nil {
+		return fmt.Errorf("error parsing time between requests duration - ensure formatting is similar to 1s, 1m, 1h, etc")
+	}
+
+	ticker := time.NewTicker(timeBetweenReqs)
+	fmt.Printf("Collecting feeds every %v\n", timeBetweenReqs)
+	for ; ; <-ticker.C {
+		err = scrapeFeeds(s.db)
+		if err != nil {
+			return err
+		}
+	}
+}
+
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	var err error
+	limit := 2
+	if len(cmd.args) > 0 {
+		limit, err = strconv.Atoi(cmd.args[0])
+		if err != nil {
+			return fmt.Errorf("error parsing limit")
+		}
+	}
+
+	userPostParams := database.GetPostsForUserParams{
+		UserID: user.ID,
+		Limit:  int32(limit),
+	}
+
+	userPosts, err := s.db.GetPostsForUser(context.Background(), userPostParams)
+	if err != nil {
+		return fmt.Errorf("error fetching posts for user %s: %v", s.config.CurrentUserName, err)
+	}
+
+	fmt.Printf("Successfully fetched posts for user %s!\n", s.config.CurrentUserName)
+
+	for _, post := range userPosts {
+		fmt.Printf("Feed: %s, Post Title: %s, Description: %s, URL: %s, Published At: %v\n", post.FeedName, post.PostTitle, post.Description.String, post.Url, post.PublishedAt.Time)
+	}
+
 	return nil
 }
 
@@ -130,7 +168,7 @@ func handlerFollow(s *state, cmd command, user database.User) error {
 
 	for _, userFeed := range feeds {
 		if feed.ID == userFeed.ID {
-			return fmt.Errorf("user is already following %s feed\n", feed.Name)
+			return fmt.Errorf("user is already following %s feed", feed.Name)
 		}
 	}
 
