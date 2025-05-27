@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/d-shames3/gatorcli/internal/config"
-	"github.com/d-shames3/gatorcli/internal/database"
+	"github.com/d-shames3/gator/internal/config"
+	"github.com/d-shames3/gator/internal/database"
 	_ "github.com/lib/pq"
 )
 

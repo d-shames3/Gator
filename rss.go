@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/d-shames3/gatorcli/internal/database"
+	"github.com/d-shames3/gator/internal/database"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
