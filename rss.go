@@ -2,12 +2,84 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/xml"
 	"fmt"
 	"html"
 	"io"
 	"net/http"
+	"time"
+
+	"github.com/d-shames3/gatorcli/internal/database"
+	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
+
+func scrapeFeeds(db *database.Queries) error {
+	feed, err := db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		return fmt.Errorf("error getting next feed to fetch: %v", err)
+	}
+
+	markedFeed, err := db.MarkFeedFetched(context.Background(), feed.ID)
+	if err != nil {
+		return fmt.Errorf("error marking feed as fetched: %v", err)
+	}
+
+	fmt.Printf("Successfully marked feed %s as last fetched %v!\n", markedFeed.Name, markedFeed.LastFetchedAt.Time)
+
+	rssFeed, err := fetchFeed(context.Background(), feed.Url)
+	if err != nil {
+		return fmt.Errorf("error fetching RSS feed %s: %v", markedFeed.Name, err)
+	}
+
+	fmt.Printf("Successfully fetched RSS feed %s!\n", rssFeed.Channel.Title)
+
+	for _, post := range rssFeed.Channel.Item {
+		validDesc := true
+		if post.Description == "" {
+			validDesc = false
+		}
+
+		timeFormats := []string{time.RFC1123, time.RFC1123Z, time.RFC822, time.RFC822Z, time.RFC850, time.RFC3339, time.RFC3339Nano, time.ANSIC, time.UnixDate, time.RubyDate}
+		validTime := false
+		var publishedAt time.Time
+		for _, timeFormat := range timeFormats {
+			publishedAt, err = time.Parse(timeFormat, post.PubDate)
+			if err == nil {
+				validTime = true
+				break
+			}
+		}
+
+		postParams := database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Title:       post.Title,
+			Url:         post.Link,
+			Description: sql.NullString{String: post.Description, Valid: validDesc},
+			PublishedAt: sql.NullTime{Time: publishedAt, Valid: validTime},
+			FeedID:      feed.ID,
+		}
+
+		savedPost, err := db.CreatePost(context.Background(), postParams)
+		if err != nil {
+			pqErr, ok := err.(*pq.Error)
+			if !ok {
+				return fmt.Errorf("error parsing sql error: %v", err)
+			}
+			if pqErr.Code == "23505" && pqErr.Table == "posts" && pqErr.Constraint == "posts_url_key" {
+				continue
+			} else {
+				return fmt.Errorf("error code %s from operation on %s table and %s constraint", pqErr.Code, pqErr.Table, pqErr.Constraint)
+			}
+		}
+		fmt.Printf("Successfully saved post %v in db (link: %v)!\n", savedPost.Title, savedPost.Url)
+	}
+
+	return nil
+}
 
 func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	client := http.Client{}
