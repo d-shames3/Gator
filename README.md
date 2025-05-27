@@ -9,7 +9,7 @@ You'll need to install the following before you get started
 
 ### Install Gator
 ```bash
-go install github.com/d-shames3/gatorcli@latest
+go install github.com/d-shames3/gator@latest
 ```
 
 ### Configure Database
