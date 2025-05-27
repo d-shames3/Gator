@@ -1,4 +1,4 @@
-module github.com/d-shames3/gatorcli
+module github.com/d-shames3/gator
 
 go 1.23.4
 
