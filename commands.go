@@ -276,6 +276,10 @@ func handlerReset(s *state, cmd command) error {
 }
 
 func handlerUnfollow(s *state, cmd command, user database.User) error {
+	if len(cmd.args) == 0 {
+		return fmt.Errorf("no feed url provided to unfollow")
+	}
+
 	feed, err := s.db.GetFeed(context.Background(), cmd.args[0])
 	if err != nil {
 		return fmt.Errorf("error fetching feed: %v", err)
